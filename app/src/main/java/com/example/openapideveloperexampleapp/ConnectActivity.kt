@@ -4,7 +4,6 @@
 package com.example.openapideveloperexampleapp
 
 import android.Manifest
-import android.app.Activity
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.content.BroadcastReceiver
@@ -15,8 +14,19 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
-import android.widget.Button
 import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.openapideveloperexampleapp.BuildConfig.DEBUG
 import com.jakewharton.threetenabp.AndroidThreeTen
 import com.swarovskioptik.comm.SOCommDeviceSearcher
@@ -48,7 +58,7 @@ import java.util.concurrent.atomic.AtomicReference
  * After this activity has finished, the called activity can starting using SO Contexts and
  * publishing and subscribing topics.
  */
-class ConnectActivity : Activity() {
+class ConnectActivity : ComponentActivity() {
     companion object {
         private const val TAG = "ConnectActivity"
         private const val PERMISSION_REQUEST_CODE = 42
@@ -104,7 +114,8 @@ class ConnectActivity : Activity() {
             )
 
             if (DEBUG) Log.d(TAG, "bluetooth state: ${bluetoothAdapterStateToString(state)}")
-            updateStateAndMaybeUI()
+            // Recreate activity to update UI based on new bluetooth state
+            recreate()
         }
     }
 
@@ -158,7 +169,37 @@ class ConnectActivity : Activity() {
             .apiKey(apiKey!!)
             .build()
 
-        updateStateAndMaybeUI()
+        setContent {
+            MaterialTheme {
+                var currentState by remember { mutableStateOf(getNewUIState()) }
+
+                LaunchedEffect(Unit) {
+                    // Trigger initial UI update
+                }
+
+                ConnectScreenRouter(
+                    currentState = currentState,
+                    onRequestPermissions = {
+                        val permissions = getPermissionForApiLevel()
+                        requestPermissions(permissions.toTypedArray(), PERMISSION_REQUEST_CODE)
+                    },
+                    onConnectToDevice = { deviceName ->
+                        connectToDevice(deviceName) {
+                            // Update state after successful connection
+                            currentState = getNewUIState()
+                        }
+                    },
+                    onContinueToMain = {
+                        val intent = nextActivityIntent!!
+                        intent.putExtra("goto", Intent(this, MainActivity::class.java))
+                        startActivity(intent)
+                    },
+                    onUpdateState = {
+                        currentState = getNewUIState()
+                    }
+                )
+            }
+        }
     }
 
     override fun onDestroy() {
@@ -205,92 +246,27 @@ class ConnectActivity : Activity() {
         return true
     }
 
-    private fun showRequestPermissionsAndBluetoothScreen() {
-        setContentView(R.layout.activity_connect_request_permissions_and_bluetooth)
-
-        val button = findViewById<Button>(R.id.buttonRequestPermissions)
-        button.setOnClickListener {
-            val permissions = getPermissionForApiLevel()
-            this.requestPermissions(permissions.toTypedArray(), PERMISSION_REQUEST_CODE)
-        }
-    }
-
-    private fun showConnectToAXVisioScreen() {
-        setContentView(R.layout.activity_connect_connect_to_ax_visio)
-
-        val buttonConnectToFolke = findViewById<Button>(R.id.buttonConnectToAXVisio)
-
-        // Disable the button until at least one device is found
-        buttonConnectToFolke.isEnabled = false
-        buttonConnectToFolke.text = getString(R.string.connect_to_ax_visio, "UNKNOWN")
-
-        // TODO: This code starts the search and stops when the first device is found.
-        // A real world application would continue the search and show the user a list of
-        // available devices. A further optimization is to save the last used device name
-        // and present it to the user without searching for new devices.
-        // NOTE: The search process drains the battery. It should be stopped as early as
-        // possible.
-        val deviceSearchDisposables = CompositeDisposable()
-        val atomicDeviceValue: AtomicReference<String> = AtomicReference("")
-        val deviceSearcher = SOCommDeviceSearcher.create(this)
-        deviceSearcher.search()
+    private fun connectToDevice(deviceName: String, onSuccess: () -> Unit) {
+        sdk!!.connect(deviceName)
+            // Add a timeout. Otherwise the screen will block forever when no AX Visio device
+            // is in reach! But the timeout must also be long enough so the user can handle
+            // the initial pairing.
+            .timeout(60, TimeUnit.SECONDS)
             .observeOn(AndroidSchedulers.mainThread())
-            .subscribe({ foundDevices ->
-                if (DEBUG) Log.d(TAG, "foundDevices: $foundDevices")
-                if (foundDevices.isEmpty())
-                    return@subscribe
-
-                // Just use the first device. This is only example code to show the concepts.
-                // A real world example would add the found devices to a list and show it to the
-                // user.
-                val foundDevice = foundDevices.first()
-
-                atomicDeviceValue.set(foundDevice.deviceName)
-                buttonConnectToFolke.isEnabled = true
-                buttonConnectToFolke.text =
-                    getString(R.string.connect_to_ax_visio, foundDevice.deviceName)
-
-                // Dispose the Observable now. This will stop the search process.
-                deviceSearchDisposables.dispose()
-            }, { e ->
-                Log.e(TAG, "Error while searching AX Visio devices", e)
-                Toast.makeText(
-                    this,
-                    "Error while searching for AX Visio devices!",
-                    Toast.LENGTH_SHORT
-                )
-                    .show()
-            }
-            )
-            .addTo(deviceSearchDisposables)
-
-        buttonConnectToFolke.setOnClickListener { button ->
-            button.isEnabled = false
-
-            sdk!!.connect(atomicDeviceValue.get())
-                // Add a timeout. Otherwise the screen will block forever when no AX Visio device
-                // is in reach! But the timeout must also be long enough so the user can handle
-                // the initial pairing.
-                .timeout(60, TimeUnit.SECONDS)
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(
-                    {
-                        button.isEnabled = true
-                        updateStateAndMaybeUI()
-                    }, { e ->
-                        button.isEnabled = true
-                        Log.e(TAG, "Connect connect to the AX Visio device", e)
-                        Toast.makeText(this, "Connecting to AX Visio failed!", Toast.LENGTH_SHORT)
-                            .show()
-                        updateStateAndMaybeUI()
-                    }
-                ).addTo(disposables)
-        }
+            .subscribe(
+                {
+                    // Connection successful, update state
+                    if (DEBUG) Log.d(TAG, "Connected to AX Visio device successfully")
+                    onSuccess()
+                }, { e ->
+                    Log.e(TAG, "Connect connect to the AX Visio device", e)
+                    Toast.makeText(this, "Connecting to AX Visio failed!", Toast.LENGTH_SHORT)
+                        .show()
+                }
+            ).addTo(disposables)
     }
 
-    private fun showWaitForOpenAPIInsideAppScreen() {
-        setContentView(R.layout.activity_connect_wait_for_openapi_inside_app)
-
+    private fun setupConnectionStateMonitoring() {
         sdk!!.connectionState
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe({ state ->
@@ -306,32 +282,8 @@ class ConnectActivity : Activity() {
             }, { e ->
                 Log.e(TAG, "Connection state failed!", e)
                 Toast.makeText(this, "Connection to AX Visio failed!", Toast.LENGTH_SHORT).show()
-                updateStateAndMaybeUI()
             })
             .addTo(disposables)
-
-        sdk!!.availableContexts
-            .observeOn(AndroidSchedulers.mainThread())
-            .subscribe { contexts ->
-                if (DEBUG) Log.d(TAG, "availableContexts: $contexts")
-                contexts.contains(SOContext.OpenAPIContextBLE).let { contextAvailable ->
-                    findViewById<Button>(R.id.buttonContinueToMain).apply {
-                        isClickable = contextAvailable
-                        isEnabled = contextAvailable
-                    }
-                }
-            }
-            .addTo(disposables)
-
-        findViewById<Button>(R.id.buttonContinueToMain).let {
-            it.isEnabled = false
-            it.isClickable = false
-            it.setOnClickListener {
-                val intent = nextActivityIntent!!
-                intent.putExtra("goto", Intent(this, MainActivity::class.java))
-                startActivity(intent)
-            }
-        }
     }
 
     private fun getNewUIState(): UIState {
@@ -347,20 +299,6 @@ class ConnectActivity : Activity() {
         return UIState.WAIT_FOR_OPENAPI_INSIDE_APP
     }
 
-    private fun updateStateAndMaybeUI() {
-        val newUIState = getNewUIState()
-
-        if (newUIState != uiState) {
-            if (DEBUG) Log.d(TAG, "Switch UI from $uiState to $newUIState")
-            when (newUIState) {
-                UIState.REQUEST_PERMISSIONS_AND_BLUETOOTH -> showRequestPermissionsAndBluetoothScreen()
-                UIState.CONNECT_TO_AX_VISIO -> showConnectToAXVisioScreen()
-                UIState.WAIT_FOR_OPENAPI_INSIDE_APP -> showWaitForOpenAPIInsideAppScreen()
-                UIState.NONE -> throw RuntimeException("Should never happen")
-            }
-            uiState = newUIState
-        }
-    }
 
     override fun onRequestPermissionsResult(
         requestCode: Int,
@@ -380,6 +318,210 @@ class ConnectActivity : Activity() {
             Toast.makeText(this, "Some permissions were not granted!", Toast.LENGTH_SHORT).show()
         }
 
-        updateStateAndMaybeUI()
+        // Recreate activity to trigger recomposition with new state
+        recreate()
+    }
+}
+
+@Composable
+fun ConnectScreenRouter(
+    currentState: ConnectActivity.UIState,
+    onRequestPermissions: () -> Unit,
+    onConnectToDevice: (String) -> Unit,
+    onContinueToMain: () -> Unit,
+    onUpdateState: () -> Unit
+) {
+    when (currentState) {
+        ConnectActivity.UIState.REQUEST_PERMISSIONS_AND_BLUETOOTH -> {
+            RequestPermissionsScreen(onRequestPermissions = onRequestPermissions)
+        }
+        ConnectActivity.UIState.CONNECT_TO_AX_VISIO -> {
+            ConnectToAXVisioScreen(onConnectToDevice = onConnectToDevice)
+        }
+        ConnectActivity.UIState.WAIT_FOR_OPENAPI_INSIDE_APP -> {
+            WaitForOpenAPIScreen(onContinueToMain = onContinueToMain)
+        }
+        ConnectActivity.UIState.NONE -> {
+            // Initial state
+        }
+    }
+}
+
+@Composable
+fun RequestPermissionsScreen(onRequestPermissions: () -> Unit) {
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = "Screen 1",
+                fontSize = 34.sp,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+
+            Text(
+                text = "The App needs access to Bluetooth and the location permission. Please grant it. Also please enable Bluetooth.",
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(bottom = 32.dp)
+            )
+
+            Button(onClick = onRequestPermissions) {
+                Text("Request Permissions")
+            }
+        }
+    }
+}
+
+@Composable
+fun ConnectToAXVisioScreen(onConnectToDevice: (String) -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var deviceName by remember { mutableStateOf<String?>(null) }
+    var isConnecting by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        val deviceSearcher = SOCommDeviceSearcher.create(context)
+        val deviceSearchDisposables = CompositeDisposable()
+
+        deviceSearcher.search()
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe({ foundDevices ->
+                if (foundDevices.isEmpty()) return@subscribe
+
+                val foundDevice = foundDevices.first()
+                deviceName = foundDevice.deviceName
+
+                // Stop search after finding first device
+                deviceSearchDisposables.dispose()
+            }, { e ->
+                Log.e("ConnectToAXVisioScreen", "Error while searching AX Visio devices", e)
+                Toast.makeText(
+                    context,
+                    "Error while searching for AX Visio devices!",
+                    Toast.LENGTH_SHORT
+                ).show()
+            })
+            .addTo(deviceSearchDisposables)
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = "Screen 2",
+                fontSize = 34.sp,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+
+            Text(
+                text = "Searching for an AX Visio device in reach. When a device is found, you can touch the button to connect to it. If the AX Visio is not started, long press the POWER button to start it.",
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(bottom = 32.dp)
+            )
+
+            Button(
+                onClick = {
+                    deviceName?.let {
+                        isConnecting = true
+                        onConnectToDevice(it)
+                    }
+                },
+                enabled = deviceName != null && !isConnecting
+            ) {
+                Text(
+                    if (deviceName != null)
+                        "Connect to AX Visio ($deviceName)"
+                    else
+                        "Connect to AX Visio (UNKNOWN)"
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun WaitForOpenAPIScreen(onContinueToMain: () -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val sdk = ConnectActivity.getSdk()
+    var isContextAvailable by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        sdk?.connectionState
+            ?.observeOn(AndroidSchedulers.mainThread())
+            ?.subscribe({ state ->
+                if (BuildConfig.DEBUG) Log.d("WaitForOpenAPIScreen", "connectionState: $state")
+                if (state == SOCommOutsideAPI.ConnectionState.Disconnected) {
+                    Log.w("WaitForOpenAPIScreen", "Connection to AX Visio lost!")
+                    Toast.makeText(
+                        context,
+                        "Connection to AX Visio lost. Please try to reconnect",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }, { e ->
+                Log.e("WaitForOpenAPIScreen", "Connection state failed!", e)
+                Toast.makeText(context, "Connection to AX Visio failed!", Toast.LENGTH_SHORT).show()
+            })
+
+        sdk?.availableContexts
+            ?.observeOn(AndroidSchedulers.mainThread())
+            ?.subscribe { contexts ->
+                if (BuildConfig.DEBUG) Log.d("WaitForOpenAPIScreen", "availableContexts: $contexts")
+                isContextAvailable = contexts.contains(SOContext.OpenAPIContextBLE)
+            }
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = "Screen 3",
+                fontSize = 34.sp,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            Image(
+                painter = painterResource(id = R.drawable.openapi_icon),
+                contentDescription = "OpenAPI Icon",
+                modifier = Modifier
+                    .padding(vertical = 8.dp)
+                    .size(64.dp)
+            )
+
+            Text(
+                text = "The OpenAPI Inside App is not started on the AX Visio. Use the Selection Wheel to start the OpenAPI App. If the Screen is off, press the power button to turn on the screen. You should see the text 'Please Connect'.",
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(bottom = 32.dp)
+            )
+
+            Button(
+                onClick = onContinueToMain,
+                enabled = isContextAvailable
+            ) {
+                Text("Continue")
+            }
+        }
     }
 }

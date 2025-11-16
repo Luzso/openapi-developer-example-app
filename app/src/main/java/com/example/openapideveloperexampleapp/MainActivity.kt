@@ -3,11 +3,19 @@
 
 package com.example.openapideveloperexampleapp
 
-import android.app.Activity
 import android.os.Bundle
 import android.util.Log
-import android.widget.Button
 import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.swarovskioptik.comm.SOCommOutsideAPI
 import com.swarovskioptik.comm.definition.SOContext
 import com.swarovskioptik.comm.definition.topic.ConfigureKeyActionProcedure
@@ -22,7 +30,7 @@ import io.reactivex.rxkotlin.addTo
  * This activity contains the actually feature logic of the application. The functionality
  * that the app provides to a user by facilitating the OpenAPI of the AX Visio.
  */
-class MainActivity : Activity() {
+class MainActivity : ComponentActivity() {
     companion object {
         private const val TAG = "MainActivity"
     }
@@ -41,10 +49,12 @@ class MainActivity : Activity() {
             return
         }
 
-        setContentView(R.layout.activity_main)
-
-        findViewById<Button>(R.id.buttonDisconnect).setOnClickListener {
-            finish()
+        setContent {
+            MaterialTheme {
+                MainScreen(
+                    onDisconnectClick = { finish() }
+                )
+            }
         }
     }
 
@@ -127,5 +137,37 @@ class MainActivity : Activity() {
         super.onDestroy()
         Log.d(TAG, "onDestroy")
         disposables.dispose()
+    }
+}
+
+@Composable
+fun MainScreen(onDisconnectClick: () -> Unit) {
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = "MainActivity",
+                fontSize = 34.sp,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+
+            Text(
+                text = "The SCROLL_KEY (with an arrow on it) on the AX Visio is now configured to take a picture. Try it out! When pressed, you should see an animation on the screen. It signals that a picture was taken.",
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(bottom = 32.dp)
+            )
+
+            Button(onClick = onDisconnectClick) {
+                Text("Disconnect")
+            }
+        }
     }
 }
