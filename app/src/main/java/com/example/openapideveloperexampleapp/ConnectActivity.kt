@@ -24,9 +24,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.example.openapideveloperexampleapp.ui.components.AppScreen
+import com.example.openapideveloperexampleapp.ui.components.BodyText
+import com.example.openapideveloperexampleapp.ui.components.PrimaryButton
+import com.example.openapideveloperexampleapp.ui.components.SectionHeader
+import com.example.openapideveloperexampleapp.ui.theme.AppTheme
 import com.example.openapideveloperexampleapp.BuildConfig.DEBUG
 import com.jakewharton.threetenabp.AndroidThreeTen
 import com.swarovskioptik.comm.SOCommDeviceSearcher
@@ -38,7 +41,6 @@ import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.rxkotlin.addTo
 import java.util.LinkedList
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicReference
 
 /**
  * Complete the necessary steps to connect to the AX Visio
@@ -170,7 +172,7 @@ class ConnectActivity : ComponentActivity() {
             .build()
 
         setContent {
-            MaterialTheme {
+            AppTheme {
                 var currentState by remember { mutableStateOf(getNewUIState()) }
 
                 LaunchedEffect(Unit) {
@@ -353,27 +355,25 @@ fun RequestPermissionsScreen(onRequestPermissions: () -> Unit) {
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text(
-                text = "Screen 1",
-                fontSize = 34.sp,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
+        AppScreen {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                SectionHeader(text = "Permissions Required")
 
-            Text(
-                text = "The App needs access to Bluetooth and the location permission. Please grant it. Also please enable Bluetooth.",
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(bottom = 32.dp)
-            )
+                BodyText(
+                    text = "The App needs access to Bluetooth and the location permission. Please grant it. Also please enable Bluetooth."
+                )
 
-            Button(onClick = onRequestPermissions) {
-                Text("Request Permissions")
+                PrimaryButton(
+                    text = "Request Permissions",
+                    onClick = onRequestPermissions,
+                    modifier = Modifier.fillMaxWidth(0.8f)
+                )
             }
         }
     }
@@ -414,39 +414,33 @@ fun ConnectToAXVisioScreen(onConnectToDevice: (String) -> Unit) {
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text(
-                text = "Screen 2",
-                fontSize = 34.sp,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
-
-            Text(
-                text = "Searching for an AX Visio device in reach. When a device is found, you can touch the button to connect to it. If the AX Visio is not started, long press the POWER button to start it.",
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(bottom = 32.dp)
-            )
-
-            Button(
-                onClick = {
-                    deviceName?.let {
-                        isConnecting = true
-                        onConnectToDevice(it)
-                    }
-                },
-                enabled = deviceName != null && !isConnecting
+        AppScreen {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
             ) {
-                Text(
-                    if (deviceName != null)
+                SectionHeader(text = "Connect to Device")
+
+                BodyText(
+                    text = "Searching for an AX Visio device in reach. When a device is found, you can touch the button to connect to it. If the AX Visio is not started, long press the POWER button to start it."
+                )
+
+                PrimaryButton(
+                    text = if (deviceName != null)
                         "Connect to AX Visio ($deviceName)"
                     else
-                        "Connect to AX Visio (UNKNOWN)"
+                        "Connect to AX Visio (UNKNOWN)",
+                    onClick = {
+                        deviceName?.let {
+                            isConnecting = true
+                            onConnectToDevice(it)
+                        }
+                    },
+                    enabled = deviceName != null && !isConnecting,
+                    modifier = Modifier.fillMaxWidth(0.8f)
                 )
             }
         }
@@ -489,38 +483,34 @@ fun WaitForOpenAPIScreen(onContinueToMain: () -> Unit) {
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text(
-                text = "Screen 3",
-                fontSize = 34.sp,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-
-            Image(
-                painter = painterResource(id = R.drawable.openapi_icon),
-                contentDescription = "OpenAPI Icon",
+        AppScreen {
+            Column(
                 modifier = Modifier
-                    .padding(vertical = 8.dp)
-                    .size(64.dp)
-            )
-
-            Text(
-                text = "The OpenAPI Inside App is not started on the AX Visio. Use the Selection Wheel to start the OpenAPI App. If the Screen is off, press the power button to turn on the screen. You should see the text 'Please Connect'.",
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(bottom = 32.dp)
-            )
-
-            Button(
-                onClick = onContinueToMain,
-                enabled = isContextAvailable
+                    .fillMaxSize()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
             ) {
-                Text("Continue")
+                SectionHeader(text = "Start OpenAPI")
+
+                Image(
+                    painter = painterResource(id = R.drawable.openapi_icon),
+                    contentDescription = "OpenAPI Icon",
+                    modifier = Modifier
+                        .padding(vertical = 16.dp)
+                        .size(80.dp)
+                )
+
+                BodyText(
+                    text = "The OpenAPI Inside App is not started on the AX Visio. Use the Selection Wheel to start the OpenAPI App. If the Screen is off, press the power button to turn on the screen. You should see the text 'Please Connect'."
+                )
+
+                PrimaryButton(
+                    text = "Continue",
+                    onClick = onContinueToMain,
+                    enabled = isContextAvailable,
+                    modifier = Modifier.fillMaxWidth(0.7f)
+                )
             }
         }
     }

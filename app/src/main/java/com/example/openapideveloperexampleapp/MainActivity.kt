@@ -13,9 +13,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.example.openapideveloperexampleapp.ui.components.AppScreen
+import com.example.openapideveloperexampleapp.ui.components.BodyText
+import com.example.openapideveloperexampleapp.ui.components.PrimaryButton
+import com.example.openapideveloperexampleapp.ui.components.SectionHeader
+import com.example.openapideveloperexampleapp.ui.theme.AppTheme
 import com.swarovskioptik.comm.SOCommOutsideAPI
 import com.swarovskioptik.comm.definition.SOContext
 import com.swarovskioptik.comm.definition.topic.ConfigureKeyActionProcedure
@@ -50,7 +53,7 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            MaterialTheme {
+            AppTheme {
                 MainScreen(
                     onDisconnectClick = { finish() }
                 )
@@ -146,27 +149,25 @@ fun MainScreen(onDisconnectClick: () -> Unit) {
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text(
-                text = "MainActivity",
-                fontSize = 34.sp,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
+        AppScreen {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                SectionHeader(text = "Connected")
 
-            Text(
-                text = "The SCROLL_KEY (with an arrow on it) on the AX Visio is now configured to take a picture. Try it out! When pressed, you should see an animation on the screen. It signals that a picture was taken.",
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(bottom = 32.dp)
-            )
+                BodyText(
+                    text = "The SCROLL_KEY (with an arrow on it) on the AX Visio is now configured to take a picture. Try it out! When pressed, you should see an animation on the screen. It signals that a picture was taken."
+                )
 
-            Button(onClick = onDisconnectClick) {
-                Text("Disconnect")
+                PrimaryButton(
+                    text = "Disconnect",
+                    onClick = onDisconnectClick,
+                    modifier = Modifier.fillMaxWidth(0.7f)
+                )
             }
         }
     }

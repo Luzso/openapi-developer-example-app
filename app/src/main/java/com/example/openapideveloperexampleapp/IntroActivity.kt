@@ -16,6 +16,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.openapideveloperexampleapp.ui.components.AppScreen
+import com.example.openapideveloperexampleapp.ui.components.BodyText
+import com.example.openapideveloperexampleapp.ui.components.PrimaryButton
+import com.example.openapideveloperexampleapp.ui.components.SectionHeader
+import com.example.openapideveloperexampleapp.ui.theme.AppTheme
 
 /**
  * Introduction activity
@@ -33,7 +38,7 @@ class IntroActivity : ComponentActivity() {
         Log.d(TAG, "onCreate: intent=${intent}")
 
         setContent {
-            MaterialTheme {
+            AppTheme {
                 IntroScreen(
                     onStartClick = {
                         val intent = Intent(this, ConnectActivity::class.java)
@@ -61,22 +66,23 @@ fun IntroScreen(onStartClick: () -> Unit) {
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text(
-                text = "OpenAPI Developer Example Application",
-                fontSize = 34.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(bottom = 32.dp)
-            )
+        AppScreen {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                SectionHeader(text = "OpenAPI Developer Example")
 
-            Button(onClick = onStartClick) {
-                Text("Start")
+                Spacer(modifier = Modifier.height(16.dp))
+
+                PrimaryButton(
+                    text = "Start",
+                    onClick = onStartClick,
+                    modifier = Modifier.fillMaxWidth(0.7f)
+                )
             }
         }
     }
