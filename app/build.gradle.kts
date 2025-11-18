@@ -74,4 +74,9 @@ dependencies {
     implementation("com.swarovskioptik.comm:SOCommOutsideAPI:1.0.0")
     implementation("io.reactivex.rxjava2:rxkotlin:2.4.0")
     implementation("io.reactivex.rxjava2:rxandroid:2.1.1")
+
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+
+    // Bridge between RxJava2 and coroutines
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-rx2:1.9.0")
 }

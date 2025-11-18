@@ -15,6 +15,14 @@ import com.swarovskioptik.comm.definition.topic.KeyAction
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.rxkotlin.addTo
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.rx2.asFlow
+import kotlinx.coroutines.rx2.await
+import kotlinx.coroutines.withContext
 
 /**
  * MainActivity of the application
@@ -28,7 +36,12 @@ class MainActivity : Activity() {
     }
 
     private var sdk: SOCommOutsideAPI? = null
-    private val disposables = CompositeDisposable()
+
+    // Coroutine scope tied to the Activity lifecycle
+    private val mainScope = MainScope()
+
+    // Job for the availableContexts collector started in onResume
+    private var contextsJob: Job? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -57,65 +70,81 @@ class MainActivity : Activity() {
         super.onResume()
         Log.d(TAG, "onResume()")
 
-        sdk!!.availableContexts.observeOn(AndroidSchedulers.mainThread()).subscribe { contexts ->
-            if (!contexts.contains(SOContext.OpenAPIContextBLE)) {
-                Log.e(
-                    TAG,
-                    "OpenAPI Context removed. Mostly the app was deselected via the selection wheel!"
-                )
-                Toast.makeText(this, "OpenAPI on AX Visio was stopped!", Toast.LENGTH_LONG).show()
-                // Finished this Activity and switch back to the ConnectActivity
-                finish()
-                return@subscribe
-            } else {
-                // NOTE: This chain of init can also be coded with .andThen()-Operator
-                sdk!!.use(SOContext.OpenAPIContextBLE)
-                    .observeOn(AndroidSchedulers.mainThread())
-                    .subscribe({
-                        // Successfully used the OpenAPIContextBLE.
+        val sdk = sdk ?: return;
 
-                        // NOTE: You should check for errors on the Completable object. But these will only include
-                        // errors on the local side, e.g. a lost connection to the AX Visio.
-                        // The remote side, the AX Visio, does not report errors, e.g. a wrong keyCode name or
-                        // a wrong procedure value.
-                        val params = ConfigureKeyActionProcedure.Params(
-                            "SCROLL_KEY",
-                            KeyAction.Down,
-                            "TRIGGER_CAMERA_TAKEPICTURE"
+        // Cancel any previous collector (defensive; should only be one)
+        contextsJob?.cancel();
+
+        contextsJob = mainScope.launch {
+            sdk.availableContexts
+                .asFlow()
+                .collect { contexts ->
+                    if(!contexts.contains(SOContext.OpenAPIContextBLE)) {
+                        Log.e(
+                            TAG,
+                            "OpenAPI Context removed. Mostly the app was deselected via the selection wheel!"
                         )
-                        sdk!!.publishTopic(ConfigureKeyActionProcedure, params)
-                            .observeOn(AndroidSchedulers.mainThread())
-                            .subscribe({}, { e ->
-                                Log.e(TAG, "Configure the key ActionProcedure failed!", e)
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(
+                                this@MainActivity,
+                                "OpenAPI on AX Visio was stopped!",
+                                Toast.LENGTH_LONG
+                            ).show()
+                            finish()
+                        }
+                        cancel()
+                        return@collect
+                    }
+                    else {
+                        // We have the OpenAPI BLE context. Claim it and configure.
+                        try {
+                            // Wait for use(OpenAPIContextBLE) to complete
+                            sdk.use(SOContext.OpenAPIContextBLE).await()
+
+                            // --- CURRENT BEHAVIOUR: configure key mapping ---
+                            // You can delete/replace this block with your media client logic later.
+                            val params = ConfigureKeyActionProcedure.Params(
+                                "SCROLL_KEY",
+                                KeyAction.Down,
+                                "TRIGGER_CAMERA_TAKEPICTURE"
+                            )
+                            sdk.publishTopic(ConfigureKeyActionProcedure, params).await()
+                            // ------------------------------------------------
+
+                        } catch (e: Throwable) {
+                            Log.e(TAG, "Cannot use OpenAPIBLE context or configure key", e)
+                            withContext(Dispatchers.Main) {
                                 Toast.makeText(
-                                    this,
-                                    "Failed to configure the key on the AX Visio.",
+                                    this@MainActivity,
+                                    "Cannot connect to OpenAPI inside App",
                                     Toast.LENGTH_SHORT
                                 ).show()
-                            })
-                            .addTo(disposables)
-                    }, { e ->
-                        Log.e(TAG, "Cannot use OpenAPIBLE context", e)
-                        Toast.makeText(
-                            this,
-                            "Cannot connect to OpenAPI inside App",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    })
-                    .addTo(disposables)
-            }
-        }.addTo(disposables)
+                            }
+                        }
+                    }
+
+                }
+        }
     }
 
     override fun onPause() {
         super.onPause()
         Log.d(TAG, "onPause()")
 
-        // Here the app releases the SOContext. The app does not use the OpenAPI functionality
-        // of the AX Visio anymore.
-        sdk!!.release(SOContext.OpenAPIContextBLE)
-            .subscribe({}, { e -> Log.e(TAG, "Cannot release OpenAPIContextBLE!", e) })
-            .addTo(disposables)
+        val sdk = sdk ?: return
+
+        // Stop listening to contexts while paused
+        contextsJob?.cancel()
+        contextsJob = null
+
+        // Release the context using coroutines
+        mainScope.launch {
+            try {
+                sdk.release(SOContext.OpenAPIContextBLE).await()
+            } catch (e: Throwable) {
+                Log.e(TAG, "Cannot release OpenAPIContextBLE!", e)
+            }
+        }
     }
 
     override fun onStop() {
@@ -126,6 +155,6 @@ class MainActivity : Activity() {
     override fun onDestroy() {
         super.onDestroy()
         Log.d(TAG, "onDestroy")
-        disposables.dispose()
+        mainScope.cancel()
     }
 }
