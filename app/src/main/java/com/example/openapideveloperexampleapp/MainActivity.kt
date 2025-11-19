@@ -4,14 +4,17 @@
 package com.example.openapideveloperexampleapp
 
 import android.app.Activity
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
 import android.widget.Button
 import android.widget.Toast
+import com.example.openapideveloperexampleapp.media.MediaClientManager
 import com.swarovskioptik.comm.SOCommOutsideAPI
 import com.swarovskioptik.comm.definition.SOContext
 import com.swarovskioptik.comm.definition.topic.ConfigureKeyActionProcedure
 import com.swarovskioptik.comm.definition.topic.KeyAction
+import com.swarovskioptik.comm.media.SOCommMediaClient
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.rxkotlin.addTo
@@ -23,6 +26,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.rx2.asFlow
 import kotlinx.coroutines.rx2.await
 import kotlinx.coroutines.withContext
+import kotlin.io.use
 
 /**
  * MainActivity of the application
@@ -33,9 +37,11 @@ import kotlinx.coroutines.withContext
 class MainActivity : Activity() {
     companion object {
         private const val TAG = "MainActivity"
+        private const val MEDIA_PERMISSION_REQUEST_CODE = 100
     }
 
     private var sdk: SOCommOutsideAPI? = null
+    private var mediaClientManager: MediaClientManager? = null
 
     // Coroutine scope tied to the Activity lifecycle
     private val mainScope = MainScope()
@@ -51,6 +57,19 @@ class MainActivity : Activity() {
         if (sdk == null) {
             Log.e(TAG, "SOCommOutsideAPI/sdk is null!")
             finish()
+            return
+        }
+
+        mediaClientManager = MediaClientManager(
+            sdk!!,
+            this)
+
+        // Check permissions before starting
+        if (!mediaClientManager!!.hasRequiredPermissions()) {
+            requestPermissions(
+                mediaClientManager!!.getRequiredPermissions(),
+                MEDIA_PERMISSION_REQUEST_CODE
+            )
             return
         }
 
@@ -98,25 +117,47 @@ class MainActivity : Activity() {
                     else {
                         // We have the OpenAPI BLE context. Claim it and configure.
                         try {
-                            // Wait for use(OpenAPIContextBLE) to complete
                             sdk.use(SOContext.OpenAPIContextBLE).await()
+                            Log.d(TAG, "OpenAPI context claimed successfully")
 
-                            // --- CURRENT BEHAVIOUR: configure key mapping ---
-                            // You can delete/replace this block with your media client logic later.
                             val params = ConfigureKeyActionProcedure.Params(
                                 "SCROLL_KEY",
                                 KeyAction.Down,
                                 "TRIGGER_CAMERA_TAKEPICTURE"
                             )
                             sdk.publishTopic(ConfigureKeyActionProcedure, params).await()
-                            // ------------------------------------------------
+                            Log.d(TAG, "Key configuration complete")
 
+                            mediaClientManager?.start()
+                            Log.d(TAG, "Media client start() called")
+
+                            mediaClientManager?.getConnectionState()?.collect { connectionState ->
+                                Log.d(TAG, "MediaClient connection state: $connectionState")
+
+                                when (connectionState) {
+                                    SOCommMediaClient.ConnectionState.ConnectedToPreview,
+                                    SOCommMediaClient.ConnectionState.ConnectedToMediaDownload -> {
+                                        Log.d(TAG, "MediaClient connected, starting image collection...")
+
+                                        // Collect images only when connected
+                                        mediaClientManager?.getAvailableImages()?.collect { thumbnails ->
+                                            Log.d(TAG, "Available thumbnails count: ${thumbnails.size}")
+                                            thumbnails.forEachIndexed { index, thumbnail ->
+                                                Log.d(TAG, "Thumbnail $index: $thumbnail")
+                                            }
+                                        }
+                                    }
+                                    else -> {
+                                        Log.d(TAG, "MediaClient not yet connected: $connectionState")
+                                    }
+                                }
+                            }
                         } catch (e: Throwable) {
-                            Log.e(TAG, "Cannot use OpenAPIBLE context or configure key", e)
+                            Log.e(TAG, "Error in OpenAPI context or MediaClient", e)
                             withContext(Dispatchers.Main) {
                                 Toast.makeText(
                                     this@MainActivity,
-                                    "Cannot connect to OpenAPI inside App",
+                                    "Cannot connect to OpenAPI: ${e.message}",
                                     Toast.LENGTH_SHORT
                                 ).show()
                             }
@@ -136,6 +177,8 @@ class MainActivity : Activity() {
         // Stop listening to contexts while paused
         contextsJob?.cancel()
         contextsJob = null
+
+        mediaClientManager?.stop()
 
         // Release the context using coroutines
         mainScope.launch {
@@ -157,4 +200,23 @@ class MainActivity : Activity() {
         Log.d(TAG, "onDestroy")
         mainScope.cancel()
     }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+
+        if (requestCode == MEDIA_PERMISSION_REQUEST_CODE) {
+            if (grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
+                Log.d(TAG, "Media permissions granted, starting MediaClient...")
+                mediaClientManager?.start()
+            } else {
+                Log.e(TAG, "Media permissions denied!")
+            }
+        }
+    }
+
+
 }

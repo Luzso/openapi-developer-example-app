@@ -72,6 +72,8 @@ dependencies {
 
     // Include the "Swarovski Optik SO Comm Outside API"
     implementation("com.swarovskioptik.comm:SOCommOutsideAPI:1.0.0")
+    implementation("com.swarovskioptik.comm:SOCommMediaClient:1.0.0")
+    implementation("com.swarovskioptik.comm:FlowSOCommMediaClientWrapper:1.0.0")
     implementation("io.reactivex.rxjava2:rxkotlin:2.4.0")
     implementation("io.reactivex.rxjava2:rxandroid:2.1.1")
 
@@ -79,4 +81,6 @@ dependencies {
 
     // Bridge between RxJava2 and coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-rx2:1.9.0")
+    implementation("androidx.navigation:navigation-fragment-ktx:2.9.6")
+    implementation("androidx.navigation:navigation-ui-ktx:2.9.6")
 }
