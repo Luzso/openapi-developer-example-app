@@ -29,6 +29,8 @@ import io.reactivex.rxkotlin.addTo
 import java.util.LinkedList
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.collections.addAll
+import kotlin.text.compareTo
 
 /**
  * Complete the necessary steps to connect to the AX Visio
@@ -191,7 +193,30 @@ class ConnectActivity : Activity() {
 
         permissions.add(Manifest.permission.ACCESS_FINE_LOCATION)
 
-        // NOTE: When using the MediaClient more runtime permissions are needed.
+        // Add notification permission for Android 13+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            permissions.add(Manifest.permission.POST_NOTIFICATIONS)
+        }
+
+        // Add MediaClient permissions
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            // Android 13+
+            permissions.add(Manifest.permission.READ_MEDIA_IMAGES)
+            permissions.add(Manifest.permission.READ_MEDIA_VIDEO)
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            // Android 11-12
+            permissions.add(Manifest.permission.READ_EXTERNAL_STORAGE)
+        } else {
+            // Android 10 and below
+            permissions.add(Manifest.permission.READ_EXTERNAL_STORAGE)
+            permissions.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        }
+
+        // Android 10+ (API 29+) - for media location
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            permissions.add(Manifest.permission.ACCESS_MEDIA_LOCATION)
+
+        }
 
         return permissions
     }

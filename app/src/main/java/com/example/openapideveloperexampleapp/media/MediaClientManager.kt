@@ -30,13 +30,13 @@ class MediaClientManager(
             .deviceCommunication(deviceCommunication)
             .mediaType(MediaType.Picture)
             .mediaFileNameHandler(MediaFileNameHandler(emptyList()))
-            .maxNumberOfThumbnailsToFetch(1)
-            .folderName("DCIM")
+            .maxNumberOfThumbnailsToFetch(5)
+            .folderName("Camera")
             .build()
     }
 
-    fun start() {
-       mediaClient.start()
+    suspend fun start() {
+       return mediaClient.asFlowApi().start()
     }
 
     fun stop() {
@@ -51,34 +51,4 @@ class MediaClientManager(
         return mediaClient.asFlowApi().availableThumbnails
     }
 
-    fun hasRequiredPermissions(): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            // Android 13+ - only need READ_MEDIA_IMAGES for Pictures
-            context.checkSelfPermission(android.Manifest.permission.READ_MEDIA_IMAGES) ==
-                    PackageManager.PERMISSION_GRANTED
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            // Android 11-12
-            context.checkSelfPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE) ==
-                    PackageManager.PERMISSION_GRANTED
-        } else {
-            // Android 10 and below
-            context.checkSelfPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE) ==
-                    PackageManager.PERMISSION_GRANTED &&
-                    context.checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE) ==
-                    PackageManager.PERMISSION_GRANTED
-        }
-    }
-
-    fun getRequiredPermissions(): Array<String> {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            arrayOf(android.Manifest.permission.READ_MEDIA_IMAGES)
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            arrayOf(android.Manifest.permission.READ_EXTERNAL_STORAGE)
-        } else {
-            arrayOf(
-                android.Manifest.permission.READ_EXTERNAL_STORAGE,
-                android.Manifest.permission.WRITE_EXTERNAL_STORAGE
-            )
-        }
-    }
 }
