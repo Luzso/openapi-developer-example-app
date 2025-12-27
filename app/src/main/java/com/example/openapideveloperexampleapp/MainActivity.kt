@@ -141,7 +141,7 @@ class MainActivity : Activity() {
                                 // Launch separate coroutine for available images
                                 launch {
                                     try{
-                                    mediaClientManager?.getAvailableImages() 
+                                    mediaClientManager?.getAvailableImages()
                                         ?.collect { thumbnails ->
                                             Log.d(
                                                 TAG,
@@ -150,6 +150,12 @@ class MainActivity : Activity() {
                                             thumbnails.forEachIndexed { index, thumbnail ->
                                                 Log.d(TAG, "Thumbnail $index: $thumbnail")
                                             }
+
+                                            // Only store the last 5 fetched thumbnails
+                                            mediaClientManager?.cacheThumbnails(
+                                                thumbnails.takeLast(5)
+                                            )
+
                                         }
                                     }
                                     catch (e: Exception){

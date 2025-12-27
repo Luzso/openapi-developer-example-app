@@ -18,7 +18,7 @@ class MediaClientManager(
     private val sdk: SOCommOutsideAPI,
     private val context: Context
 ) {
-
+    private var cachedThumbnails: List<MediaItem.Thumbnail>? = null
     private var deviceCommunication: DeviceCommunication
     private var mediaClient: SOCommMediaClient
 
@@ -49,6 +49,10 @@ class MediaClientManager(
 
     fun getAvailableImages() : Flow<List<MediaItem.Thumbnail>> {
         return mediaClient.asFlowApi().availableThumbnails
+    }
+
+    fun cacheThumbnails(thumbnails: List<MediaItem.Thumbnail>) {
+        cachedThumbnails = thumbnails
     }
 
 }
