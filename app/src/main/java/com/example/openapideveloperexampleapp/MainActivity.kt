@@ -4,6 +4,10 @@
 package com.example.openapideveloperexampleapp
 
 import android.app.Activity
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
 import android.os.Bundle
 import android.util.Log
 import android.widget.Button
@@ -12,9 +16,11 @@ import com.swarovskioptik.comm.SOCommOutsideAPI
 import com.swarovskioptik.comm.definition.SOContext
 import com.swarovskioptik.comm.definition.topic.ConfigureKeyActionProcedure
 import com.swarovskioptik.comm.definition.topic.KeyAction
+import com.swarovskioptik.comm.definition.topic.RenderPixelGraphic
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.rxkotlin.addTo
+import java.io.ByteArrayOutputStream
 
 /**
  * MainActivity of the application
@@ -58,7 +64,7 @@ class MainActivity : Activity() {
         Log.d(TAG, "onResume()")
 
         sdk!!.availableContexts.observeOn(AndroidSchedulers.mainThread()).subscribe { contexts ->
-            if (!contexts.contains(SOContext.OpenAPIContextBLE)) {
+            if (!contexts.contains(SOContext.OpenAPIContext)) {
                 Log.e(
                     TAG,
                     "OpenAPI Context removed. Mostly the app was deselected via the selection wheel!"
@@ -69,16 +75,50 @@ class MainActivity : Activity() {
                 return@subscribe
             } else {
                 // NOTE: This chain of init can also be coded with .andThen()-Operator
-                sdk!!.use(SOContext.OpenAPIContextBLE)
+                sdk!!.use(SOContext.OpenAPIContext)
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe({
                         // Successfully used the OpenAPIContextBLE.
+                        // TODO: 1 - Create bytearray for graphic
+                        val size = 128
+                        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888).apply {
+                            eraseColor(Color.TRANSPARENT)
+                            val canvas = Canvas(this)
+                            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE; style = Paint.Style.STROKE; strokeWidth = 4f }
+                            canvas.drawRect(2f, 2f, size - 2f, size - 2f, paint)
+                        }
+                        val graphicBytes = ByteArrayOutputStream().use { out ->
+                            bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+                            out.toByteArray()
+                        }
+
+                        // TODO: 2 - Create graphics parameters
+                        val params = RenderPixelGraphic.Param(
+                            duration = 10_000, // Milliseconds
+                            rotatedWithKnickbridgeAngle = true,
+                            graphic = graphicBytes
+                        )
+
+                        // TODO: 3 - Publish graphics parameters to AX Visio
+                        sdk!!.publishTopic(RenderPixelGraphic, params)
+                            .observeOn(AndroidSchedulers.mainThread())
+                            .subscribe({}, { e ->
+                                Log.e(TAG, "RenderPixelGraphic failed!", e)
+                                Toast.makeText(
+                                    this,
+                                    "Failed to render graphic on the AX Visio.",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            })
+                            .addTo(disposables)
+
+
 
                         // NOTE: You should check for errors on the Completable object. But these will only include
                         // errors on the local side, e.g. a lost connection to the AX Visio.
                         // The remote side, the AX Visio, does not report errors, e.g. a wrong keyCode name or
                         // a wrong procedure value.
-                        val params = ConfigureKeyActionProcedure.Params(
+                        /*val params = ConfigureKeyActionProcedure.Params(
                             "SCROLL_KEY",
                             KeyAction.Down,
                             "TRIGGER_CAMERA_TAKEPICTURE"
@@ -93,7 +133,9 @@ class MainActivity : Activity() {
                                     Toast.LENGTH_SHORT
                                 ).show()
                             })
-                            .addTo(disposables)
+                            .addTo(disposables)*/
+
+
                     }, { e ->
                         Log.e(TAG, "Cannot use OpenAPIBLE context", e)
                         Toast.makeText(
