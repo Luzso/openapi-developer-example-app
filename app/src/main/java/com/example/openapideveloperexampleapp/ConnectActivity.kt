@@ -12,12 +12,15 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.widget.Button
+import android.widget.ImageView
 import android.widget.Toast
 import com.example.openapideveloperexampleapp.BuildConfig.DEBUG
+import com.example.openapideveloperexampleapp.extra.PixelDrawing
 import com.jakewharton.threetenabp.AndroidThreeTen
 import com.swarovskioptik.comm.SOCommDeviceSearcher
 import com.swarovskioptik.comm.SOCommOutsideAPI
@@ -217,6 +220,13 @@ class ConnectActivity : Activity() {
 
     private fun showConnectToAXVisioScreen() {
         setContentView(R.layout.activity_connect_connect_to_ax_visio)
+
+        val arcPreview = findViewById<android.widget.ImageView>(R.id.imageViewArcPreview)
+        arcPreview.post {
+            val bitmap = PixelDrawing().drawTopHalfSemiCircleBitmap()
+            val scaled = Bitmap.createScaledBitmap(bitmap, arcPreview.width, arcPreview.height, true)
+            arcPreview.setImageBitmap(scaled)
+        }
 
         val buttonConnectToFolke = findViewById<Button>(R.id.buttonConnectToAXVisio)
 
