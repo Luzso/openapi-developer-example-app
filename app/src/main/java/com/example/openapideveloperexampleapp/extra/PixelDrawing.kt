@@ -30,10 +30,9 @@ class PixelDrawing {
         return bitmapToPngBytes(bitmap)
     }
 
-    fun drawTopHalfSemiCircleBitmap(
-        strokeWidth: Float = 10f,
-        color: Int = Color.WHITE
-    ): Bitmap {
+    fun drawTopHalfSemiCircleBitmap(): Bitmap {
+        val strokeWidth: Float = 10f
+        val color: Int = Color.WHITE
         val drawableWidth = 1366
         val drawableHeight = 768
         val bitmap = Bitmap.createBitmap(drawableWidth, drawableHeight, Bitmap.Config.ARGB_8888).apply {
@@ -58,11 +57,8 @@ class PixelDrawing {
         return bitmap
     }
 
-    fun drawTopHalfSemiCircleGraphic(
-        strokeWidth: Float = 10f,
-        color: Int = Color.WHITE
-    ): ByteArray {
-        val bitmap = drawTopHalfSemiCircleBitmap(strokeWidth, color)
+    fun drawTopHalfSemiCircleGraphic(): ByteArray {
+        val bitmap = drawTopHalfSemiCircleBitmap()
         return bitmapToPngBytes(bitmap)
     }
 

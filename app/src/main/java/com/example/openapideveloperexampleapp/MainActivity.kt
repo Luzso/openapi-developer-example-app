@@ -12,6 +12,7 @@ import android.os.Bundle
 import android.util.Log
 import android.widget.Button
 import android.widget.Toast
+import com.example.openapideveloperexampleapp.extra.PixelDrawing
 import com.swarovskioptik.comm.SOCommOutsideAPI
 import com.swarovskioptik.comm.definition.SOContext
 import com.swarovskioptik.comm.definition.topic.ConfigureKeyActionProcedure
@@ -80,23 +81,13 @@ class MainActivity : Activity() {
                     .subscribe({
                         // Successfully used the OpenAPIContextBLE.
                         // TODO: 1 - Create bytearray for graphic
-                        val size = 128
-                        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888).apply {
-                            eraseColor(Color.TRANSPARENT)
-                            val canvas = Canvas(this)
-                            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE; style = Paint.Style.STROKE; strokeWidth = 4f }
-                            canvas.drawRect(2f, 2f, size - 2f, size - 2f, paint)
-                        }
-                        val graphicBytes = ByteArrayOutputStream().use { out ->
-                            bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
-                            out.toByteArray()
-                        }
+                        val graphic = PixelDrawing().drawTopHalfSemiCircleGraphic()
 
                         // TODO: 2 - Create graphics parameters
                         val params = RenderPixelGraphic.Param(
                             duration = 10_000, // Milliseconds
                             rotatedWithKnickbridgeAngle = true,
-                            graphic = graphicBytes
+                            graphic = graphic
                         )
 
                         // TODO: 3 - Publish graphics parameters to AX Visio
