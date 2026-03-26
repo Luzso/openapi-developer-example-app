@@ -18,18 +18,6 @@ import java.io.ByteArrayOutputStream
 
 class PixelDrawing {
 
-    fun drawDemoBitmap(): ByteArray {
-        val size = 128
-        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888).apply {
-            eraseColor(Color.BLACK)
-            val canvas = Canvas(this)
-            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE; style = Paint.Style.FILL }
-            canvas.drawRect(2f, 2f, size - 2f, size - 2f, paint)
-        }
-
-        return bitmapToPngBytes(bitmap)
-    }
-
     fun drawTopHalfSemiCircleBitmap(): Bitmap {
         val strokeWidth: Float = 10f
         val color: Int = Color.WHITE

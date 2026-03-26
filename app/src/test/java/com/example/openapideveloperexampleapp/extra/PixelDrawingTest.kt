@@ -1,9 +1,7 @@
 package com.example.openapideveloperexampleapp.extra
 
 import android.graphics.Bitmap
-import android.graphics.Canvas
 import android.graphics.Color
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -50,16 +48,6 @@ class PixelDrawingTest {
     }
 
     @Test
-    fun drawDemoBitmap_producesPngArtifact() {
-        val drawing = PixelDrawing()
-
-        val png = drawing.drawDemoBitmap()
-        assertTrue(png.size > 8)
-
-        writePngArtifact("demo.png", png)
-    }
-
-    @Test
     fun drawTopHalfSemiCircle_producesPngArtifact() {
         val drawing = PixelDrawing()
 
@@ -68,54 +56,4 @@ class PixelDrawingTest {
 
         writeBitmapPreview("top_half_semi_circle.png", bitmap)
     }
-    /*
-    @Test
-    fun circleBitmap_hasExpectedSize_andProducesPngArtifact() {
-        val drawing = PixelDrawing()
-
-        val bitmap = drawing.circleBitmap()
-        assertNotNull(bitmap)
-        assertEquals(128, bitmap.width)
-        assertEquals(128, bitmap.height)
-
-        val png = drawing.bitmapToPNGByteArray(bitmap)
-        assertTrue(png.size > 8)
-        // PNG signature: 89 50 4E 47 0D 0A 1A 0A
-        val expectedHeader = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A)
-        assertTrue("Expected PNG header", png.take(8).toByteArray().contentEquals(expectedHeader))
-
-        writePngArtifact("circle.png", png)
-    }
-
-    @Test
-    fun crosshairBitmap_hasExpectedSize_andProducesPngArtifact() {
-        val drawing = PixelDrawing()
-
-        val bitmap = drawing.crosshairBitmap()
-        assertNotNull(bitmap)
-        assertEquals(30, bitmap.width)
-        assertEquals(30, bitmap.height)
-
-        val png = drawing.bitmapToPNGByteArray(bitmap)
-        assertTrue(png.size > 8)
-
-        writePngArtifact("crosshair.png", png)
-    }
-
-
-
-    @Test
-    fun bitmapLayersToPNGByteArray_combinesLayers_andProducesPngArtifact() {
-        val drawing = PixelDrawing()
-
-        val layers: List<Bitmap> = listOf(
-            drawing.circleBitmap(),
-            drawing.crosshairBitmap()
-        )
-
-        val png = drawing.bitmapLayersToPNGByteArray(layers)
-        assertTrue(png.size > 8)
-
-        writePngArtifact("combined_circle_crosshair.png", png)
-    }*/
 }
