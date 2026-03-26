@@ -58,6 +58,17 @@ class PixelDrawingTest {
     }
 
     @Test
+    fun drawTimeOfDay_currentTimeBeforeTimestamp1_producesPngArtifact() {
+        // Condition 1: currentTime < timestamp1 → label shows delta to timestamp1
+        val t1 = 3600_000L   // sunrise at 60 min
+        val t2 = 7200_000L   // sunset at 120 min
+        val current = 1800_000L  // 30 min before sunrise
+        val bitmap = PixelDrawing().drawTimeOfDayBitmap(currentTime = current, timestamp1 = t1, timestamp2 = t2)
+        assertNotNull(bitmap)
+        writeBitmapPreview("time_of_day_before_sunrise.png", bitmap)
+    }
+
+    @Test
     fun drawTimeOfDay_currentTimeAtStart_producesPngArtifact() {
         val t1 = 0L
         val t2 = 3600_000L // 1 hour later

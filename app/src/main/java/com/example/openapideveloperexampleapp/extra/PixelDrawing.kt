@@ -90,26 +90,109 @@ class PixelDrawing {
             val radiusX = (right - left) / 2
             val radiusY = (bottom - top) / 2
 
-            fun drawTick(angleDegrees: Float) {
+            // Returns the arc point and normalized inward direction at an angle
+            fun arcGeometry(angleDegrees: Float): FloatArray {
                 val angleRad = Math.toRadians(angleDegrees.toDouble())
                 val cos = Math.cos(angleRad).toFloat()
                 val sin = Math.sin(angleRad).toFloat()
                 val arcX = centerX + radiusX * cos
                 val arcY = centerY + radiusY * sin
-                // Inward direction: from arc point toward ellipse center
                 val dx = centerX - arcX
                 val dy = centerY - arcY
                 val len = Math.sqrt((dx * dx + dy * dy).toDouble()).toFloat()
-                canvas.drawLine(arcX, arcY, arcX + dx / len * tickLength, arcY + dy / len * tickLength, paint)
+                return floatArrayOf(arcX, arcY, dx / len, dy / len)
             }
 
-            drawTick(190f) // near left end (timestamp1 side)
-            drawTick(350f) // near right end (timestamp2 side)
+            // Inward tick from the arc surface
+            fun drawTick(angleDegrees: Float) {
+                val g = arcGeometry(angleDegrees)
+                canvas.drawLine(g[0], g[1], g[0] + g[2] * tickLength, g[1] + g[3] * tickLength, paint)
+            }
 
-            // Current time: proportional position along the arc
-            val proportion = ((currentTime - timestamp1).toFloat() / (timestamp2 - timestamp1))
-                .coerceIn(0f, 1f)
-            drawTick(180f + proportion * 180f)
+            // Arrow with tip pointing toward the arc; gap=0 places the tip flush with the arc
+            fun drawArrow(angleDegrees: Float, gap: Float = 15f) {
+                val g = arcGeometry(angleDegrees)
+                val arcX = g[0]; val arcY = g[1]; val nx = g[2]; val ny = g[3]
+                val stemLength = 60f
+                val wingBack = 18f
+                val wingSpread = 9f
+                val perpX = -ny
+                val perpY = nx
+                val tipX = arcX + nx * gap
+                val tipY = arcY + ny * gap
+                // Stem
+                canvas.drawLine(tipX, tipY, tipX + nx * stemLength, tipY + ny * stemLength, paint)
+                // Arrowhead wings opening backward from tip
+                canvas.drawLine(tipX, tipY, tipX + nx * wingBack + perpX * wingSpread, tipY + ny * wingBack + perpY * wingSpread, paint)
+                canvas.drawLine(tipX, tipY, tipX + nx * wingBack - perpX * wingSpread, tipY + ny * wingBack - perpY * wingSpread, paint)
+            }
+
+            // Icon center placed outward from the arc by [offset] px
+            fun iconCenter(angleDegrees: Float, offset: Float): Pair<Float, Float> {
+                val g = arcGeometry(angleDegrees)
+                return Pair(g[0] - g[2] * offset, g[1] - g[3] * offset) // outward = negate inward
+            }
+
+            // Sunrise: top semicircle above horizon line, rays extending upward
+            fun drawSunriseIcon(cx: Float, cy: Float) {
+                val r = 20f
+                canvas.drawLine(cx - 38f, cy, cx + 38f, cy, paint)
+                canvas.drawArc(RectF(cx - r, cy - r, cx + r, cy + r), 180f, 180f, false, paint)
+                for (deg in listOf(-90f, -135f, -45f)) {
+                    val a = Math.toRadians(deg.toDouble())
+                    val rc = Math.cos(a).toFloat(); val rs = Math.sin(a).toFloat()
+                    canvas.drawLine(cx + rc * (r + 4f), cy + rs * (r + 4f), cx + rc * (r + 14f), cy + rs * (r + 14f), paint)
+                }
+            }
+
+            // Sunset: bottom semicircle below horizon line, rays extending downward
+            fun drawSunsetIcon(cx: Float, cy: Float) {
+                val r = 20f
+                canvas.drawLine(cx - 38f, cy, cx + 38f, cy, paint)
+                canvas.drawArc(RectF(cx - r, cy - r, cx + r, cy + r), 0f, 180f, false, paint)
+                for (deg in listOf(90f, 135f, 45f)) {
+                    val a = Math.toRadians(deg.toDouble())
+                    val rc = Math.cos(a).toFloat(); val rs = Math.sin(a).toFloat()
+                    canvas.drawLine(cx + rc * (r + 4f), cy + rs * (r + 4f), cx + rc * (r + 14f), cy + rs * (r + 14f), paint)
+                }
+            }
+
+            drawTick(215f)
+            val (srX, srY) = iconCenter(215f, 65f)
+            drawSunriseIcon(srX, srY)
+
+            drawTick(350f)
+            val (ssX, ssY) = iconCenter(350f, 65f)
+            drawSunsetIcon(ssX, ssY)
+
+            when {
+                currentTime == timestamp1 -> drawArrow(215f, gap = 0f)
+                currentTime == timestamp2 -> drawArrow(350f, gap = 0f)
+                else -> {
+                    val proportion = ((currentTime - timestamp1).toFloat() / (timestamp2 - timestamp1))
+                        .coerceIn(0f, 1f)
+                    val arrowAngle = 180f + proportion * 180f
+                    drawArrow(arrowAngle)
+
+                    val minutesDiff = if (currentTime < timestamp1) {
+                        (timestamp1 - currentTime) / 60_000L
+                    } else {
+                        (timestamp2 - currentTime) / 60_000L
+                    }
+                    val otherTickAngle = if (currentTime < timestamp1) 215f else 350f
+                    val midAngle = (arrowAngle + otherTickAngle) / 2f
+                    val mg = arcGeometry(midAngle)
+                    val labelX = mg[0] + mg[2] * 80f
+                    val labelY = mg[1] + mg[3] * 80f
+                    val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                        color = Color.WHITE
+                        style = Paint.Style.FILL
+                        textSize = 38f
+                        textAlign = Paint.Align.CENTER
+                    }
+                    canvas.drawText("${minutesDiff}m", labelX, labelY - (textPaint.ascent() + textPaint.descent()) / 2, textPaint)
+                }
+            }
         }
     }
 
