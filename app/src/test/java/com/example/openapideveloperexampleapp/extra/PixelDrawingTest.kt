@@ -56,4 +56,32 @@ class PixelDrawingTest {
 
         writeBitmapPreview("top_half_semi_circle.png", bitmap)
     }
+
+    @Test
+    fun drawTimeOfDay_currentTimeAtStart_producesPngArtifact() {
+        val t1 = 0L
+        val t2 = 3600_000L // 1 hour later
+        val bitmap = PixelDrawing().drawTimeOfDayBitmap(currentTime = t1, timestamp1 = t1, timestamp2 = t2)
+        assertNotNull(bitmap)
+        writeBitmapPreview("time_of_day_at_start.png", bitmap)
+    }
+
+    @Test
+    fun drawTimeOfDay_currentTimeAtMidpoint_producesPngArtifact() {
+        val t1 = 0L
+        val t2 = 3600_000L
+        val mid = (t1 + t2) / 2
+        val bitmap = PixelDrawing().drawTimeOfDayBitmap(currentTime = mid, timestamp1 = t1, timestamp2 = t2)
+        assertNotNull(bitmap)
+        writeBitmapPreview("time_of_day_at_midpoint.png", bitmap)
+    }
+
+    @Test
+    fun drawTimeOfDay_currentTimeAtEnd_producesPngArtifact() {
+        val t1 = 0L
+        val t2 = 3600_000L
+        val bitmap = PixelDrawing().drawTimeOfDayBitmap(currentTime = t2, timestamp1 = t1, timestamp2 = t2)
+        assertNotNull(bitmap)
+        writeBitmapPreview("time_of_day_at_end.png", bitmap)
+    }
 }

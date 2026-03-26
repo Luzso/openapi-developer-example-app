@@ -50,6 +50,73 @@ class PixelDrawing {
         return bitmapToPngBytes(bitmap)
     }
 
+    /**
+     * Draws a semi-circle with three tick marks:
+     * - One near the left end (timestamp1 side)
+     * - One near the right end (timestamp2 side)
+     * - One at the proportional position of [currentTime] between [timestamp1] and [timestamp2]
+     *
+     * All time values are in the same unit (e.g. epoch milliseconds). [timestamp2] must be > [timestamp1].
+     * If [currentTime] is outside [timestamp1]..[timestamp2] the mark is clamped to the nearest end.
+     */
+    fun drawTimeOfDayBitmap(currentTime: Long, timestamp1: Long, timestamp2: Long): Bitmap {
+        require(timestamp2 > timestamp1) { "timestamp2 must be greater than timestamp1" }
+
+        val strokeWidth = 10f
+        val tickLength = 40f
+        val drawableWidth = 1366
+        val drawableHeight = 768
+
+        return Bitmap.createBitmap(drawableWidth, drawableHeight, Bitmap.Config.ARGB_8888).apply {
+            eraseColor(Color.TRANSPARENT)
+            val canvas = Canvas(this)
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.WHITE
+                style = Paint.Style.STROKE
+                this.strokeWidth = strokeWidth
+                strokeCap = Paint.Cap.ROUND
+            }
+
+            val left = drawableWidth * 0.1f
+            val right = drawableWidth * 0.9f
+            val top = drawableHeight * 0.1f
+            val bottom = drawableHeight * 0.9f
+
+            // Top half arc: starts at 180° (left), sweeps clockwise through 270° (top) to 360° (right)
+            canvas.drawArc(RectF(left, top, right, bottom), 180f, 180f, false, paint)
+
+            val centerX = (left + right) / 2
+            val centerY = (top + bottom) / 2
+            val radiusX = (right - left) / 2
+            val radiusY = (bottom - top) / 2
+
+            fun drawTick(angleDegrees: Float) {
+                val angleRad = Math.toRadians(angleDegrees.toDouble())
+                val cos = Math.cos(angleRad).toFloat()
+                val sin = Math.sin(angleRad).toFloat()
+                val arcX = centerX + radiusX * cos
+                val arcY = centerY + radiusY * sin
+                // Inward direction: from arc point toward ellipse center
+                val dx = centerX - arcX
+                val dy = centerY - arcY
+                val len = Math.sqrt((dx * dx + dy * dy).toDouble()).toFloat()
+                canvas.drawLine(arcX, arcY, arcX + dx / len * tickLength, arcY + dy / len * tickLength, paint)
+            }
+
+            drawTick(190f) // near left end (timestamp1 side)
+            drawTick(350f) // near right end (timestamp2 side)
+
+            // Current time: proportional position along the arc
+            val proportion = ((currentTime - timestamp1).toFloat() / (timestamp2 - timestamp1))
+                .coerceIn(0f, 1f)
+            drawTick(180f + proportion * 180f)
+        }
+    }
+
+    fun drawTimeOfDayGraphic(currentTime: Long, timestamp1: Long, timestamp2: Long): ByteArray {
+        return bitmapToPngBytes(drawTimeOfDayBitmap(currentTime, timestamp1, timestamp2))
+    }
+
     private fun bitmapToPngBytes(bitmap: Bitmap): ByteArray {
         return ByteArrayOutputStream().use { out ->
             bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
